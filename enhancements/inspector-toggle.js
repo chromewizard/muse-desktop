@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Muse Desktop - Beacon Activity Inspector (Auto-Open, Toggle, State Indicator & Twirl)
 // @namespace    https://github.com/chromewizard/muse-desktop
-// @version      1.3.2
+// @version      1.3.3
 // @description  Opens Beacon's Activity Inspector drawer by default, adds a persistent top-right toolbar toggle that shows On/Off state, binds Cmd+Option+I, and makes the little Beacon avatar do an organic twirl when the drawer is closed with the X (so people learn that he is the handle that brings it back).
 // @match        https://muse.ai/*
 // @grant        none
@@ -26,7 +26,7 @@
     'use strict';
 
     if (window.__museInspectorEnhancement) return; // idempotent (userscript + injected copy)
-    window.__museInspectorEnhancement = { version: '1.3.2' };
+    window.__museInspectorEnhancement = { version: '1.3.3' };
 
     const SEL = {
         closeBtn: '[data-testid="hatch-status-panel-close"]',
@@ -82,7 +82,7 @@
                 100% { transform: translateY(0); }
             }
             .muse-beacon-twirling {
-                animation: muse-beacon-turn 1700ms both !important;
+                animation: muse-beacon-turn 2400ms both !important;
                 perspective: 300px !important;
                 transform-style: preserve-3d !important;
                 transform-origin: 50% 60% !important;
@@ -94,42 +94,23 @@
                 backface-visibility: hidden !important; -webkit-backface-visibility: hidden !important;
                 will-change: transform;
             }
-            /* the light disc he sits in at rest stays put underneath everything, so the "white outline"
-               never disappears; the sphere and his back turn inside it at ~80% of its size */
-            .muse-beacon-frame {
-                position: absolute; inset: 0; border-radius: 9999px; pointer-events: none;
-                transform: translateZ(-1px);
+            /* Both turning layers are built from his real frame (body, hands, light background), with the
+               face opening covered by his own fabric. So the light disc he sits in never disappears and
+               his silhouette stays his. .muse-beacon-body is the static one that shows at the edge-on
+               moments; .muse-beacon-backface is his mirrored back and turns opposite to the face. */
+            .muse-beacon-body, .muse-beacon-backface {
+                position: absolute; inset: 0; border-radius: 9999px; overflow: hidden; pointer-events: none;
                 background: #f2f0ec;
-                box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.5), inset 0 0 0 1px rgba(0, 0, 0, 0.035);
             }
-            .muse-beacon-ball, .muse-beacon-backface {
-                position: absolute; inset: 10%; border-radius: 9999px; overflow: hidden; pointer-events: none;
-                background: linear-gradient(160deg, #efe6d8 0%, #d9c9b3 55%, #c2ad93 100%);
-            }
-            .muse-beacon-ball canvas, .muse-beacon-backface canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-            .muse-beacon-ball {
-                transform: translateZ(-0.5px);           /* the sphere: sits just behind the resting face */
-            }
-            .muse-beacon-ball .muse-beacon-shade {
-                position: absolute; inset: 0; border-radius: 9999px;
-                background:
-                    radial-gradient(70% 70% at 36% 28%, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 55%),
-                    radial-gradient(72% 72% at 50% 50%, rgba(0, 0, 0, 0) 58%, rgba(0, 0, 0, 0.30) 100%);
-            }
+            .muse-beacon-body canvas, .muse-beacon-backface canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+            .muse-beacon-body { transform: translateZ(-0.5px); }
             .muse-beacon-backface {
                 transform: rotateY(calc(var(--muse-theta) + 180deg)) translateZ(var(--muse-lift));
                 backface-visibility: hidden; -webkit-backface-visibility: hidden;
                 will-change: transform;
             }
-            .muse-beacon-backface .muse-beacon-hood {
-                position: absolute; inset: 0; border-radius: 9999px;
-                background:
-                    radial-gradient(60% 70% at 50% 35%, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 60%),
-                    linear-gradient(90deg, rgba(0, 0, 0, 0) 46%, rgba(0, 0, 0, 0.09) 50%, rgba(0, 0, 0, 0) 54%),
-                    radial-gradient(75% 75% at 50% 50%, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.18) 100%);
-            }
             .muse-beacon-tag-bob {
-                animation: muse-beacon-tag-bob 420ms 1340ms ease-out both !important;
+                animation: muse-beacon-tag-bob 420ms 1900ms ease-out both !important;
                 will-change: transform;
             }
             /* reduced motion: a soft pulse instead of the spin */
@@ -295,32 +276,37 @@
         }
     }
 
-    // The light disc behind him: sample the avatar's own background from the frame's top-left corner
-    // (outside the figure) so the frame matches the app's theme; fall back to the CSS color.
-    function frameColor(front) {
+    // His real frame (centered square crop of the media, so it matches the round avatar), with the
+    // face opening covered by fabric sampled from his own chest and feathered at the edge. mirror=true gives the view from behind. Returns null if the media can't be read.
+    function figureCanvas(front, size, mirror) {
         try {
             const m = front.querySelector('video, img');
             const W = m && (m.videoWidth || m.naturalWidth), H = m && (m.videoHeight || m.naturalHeight);
             if (!m || !(W > 0) || !(H > 0)) return null;
-            const c = document.createElement('canvas'); c.width = 8; c.height = 8;
+            const dpr = Math.min(window.devicePixelRatio || 1, 3);
+            const px = Math.max(8, Math.round(size * dpr));
+            const sq = Math.min(W, H), ox = (W - sq) / 2, oy = (H - sq) / 2;
+            const c = document.createElement('canvas'); c.width = px; c.height = px;
             const ctx = c.getContext('2d');
-            ctx.drawImage(m, W * 0.04, H * 0.04, W * 0.12, H * 0.12, 0, 0, 8, 8);
-            const d = ctx.getImageData(0, 0, 8, 8).data;
-            let r = 0, g = 0, b = 0, n = 0;
-            for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
-            return 'rgb(' + Math.round(r / n) + ',' + Math.round(g / n) + ',' + Math.round(b / n) + ')';
-        } catch (e) { return null; }
-    }
+            if (mirror) { ctx.translate(px, 0); ctx.scale(-1, 1); }
+            ctx.drawImage(m, ox, oy, sq, sq, 0, 0, px, px);
 
-    function makeLayer(className, texture, overlayClass) {
-        const el = document.createElement('div');
-        el.className = className;
-        el.setAttribute('aria-hidden', 'true');
-        if (texture) el.appendChild(texture);
-        const overlay = document.createElement('div');
-        overlay.className = overlayClass;
-        el.appendChild(overlay);
-        return el;
+            // fabric patch over the face opening (ellipse centred a little above the middle)
+            const fx = 0.50 * px, fy = 0.40 * px, rx = 0.30 * px, ry = 0.24 * px;
+            const patch = document.createElement('canvas'); patch.width = px; patch.height = px;
+            const pc = patch.getContext('2d');
+            pc.drawImage(m, ox + sq * 0.29, oy + sq * 0.50, sq * 0.42, sq * 0.42, fx - rx * 1.15, fy - ry * 1.15, rx * 2.3, ry * 2.3);
+            pc.globalCompositeOperation = 'destination-in';
+            pc.save(); pc.translate(fx, fy); pc.scale(rx, ry);
+            const g = pc.createRadialGradient(0, 0, 0, 0, 0, 1);
+            g.addColorStop(0.78, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+            pc.fillStyle = g; pc.fillRect(-1.3, -1.3, 2.6, 2.6);
+            pc.restore();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.drawImage(patch, 0, 0);
+            ctx.getImageData(0, 0, 1, 1); // throws on a tainted canvas
+            return c;
+        } catch (e) { return null; }
     }
 
     function runTwirl() {
@@ -343,17 +329,17 @@
         if (!isStockBeacon(front)) { runHop(avatar, tag); return; }   // replaced avatar: plain hop only
 
         // restart cleanly if a twirl is already mid-flight
-        avatar.querySelectorAll('.muse-beacon-frame, .muse-beacon-ball, .muse-beacon-backface').forEach(n => n.remove());
+        avatar.querySelectorAll('.muse-beacon-body, .muse-beacon-backface').forEach(n => n.remove());
         avatar.classList.remove('muse-beacon-twirling'); void avatar.offsetWidth;
 
         const size = front.getBoundingClientRect().width || 56;
-        const frame = document.createElement('div');
-        frame.className = 'muse-beacon-frame'; frame.setAttribute('aria-hidden', 'true');
-        const fc = frameColor(front); if (fc) frame.style.background = fc;
-        const ball = makeLayer('muse-beacon-ball', fabricCanvas(front, size), 'muse-beacon-shade');
-        const back = makeLayer('muse-beacon-backface', fabricCanvas(front, size), 'muse-beacon-hood');
-        avatar.appendChild(frame);
-        avatar.appendChild(ball);
+        const body = document.createElement('div');
+        body.className = 'muse-beacon-body'; body.setAttribute('aria-hidden', 'true');
+        const bodyTex = figureCanvas(front, size, false); if (bodyTex) body.appendChild(bodyTex);
+        const back = document.createElement('div');
+        back.className = 'muse-beacon-backface'; back.setAttribute('aria-hidden', 'true');
+        const backTex = figureCanvas(front, size, true); if (backTex) back.appendChild(backTex);
+        avatar.appendChild(body);
         avatar.appendChild(back);
 
         front.classList.add('muse-beacon-front');
@@ -364,10 +350,10 @@
             if (done) return; done = true;
             avatar.classList.remove('muse-beacon-twirling');
             front.classList.remove('muse-beacon-front');
-            frame.remove(); ball.remove(); back.remove();
+            body.remove(); back.remove();
         };
         avatar.addEventListener('animationend', (e) => { if (e.animationName === 'muse-beacon-turn') cleanup(); });
-        setTimeout(cleanup, 2600); // safety net if the node is re-rendered mid-spin
+        setTimeout(cleanup, 3400); // safety net if the node is re-rendered mid-spin
 
         if (tag) {
             tag.classList.remove('muse-beacon-tag-bob'); void tag.offsetWidth;

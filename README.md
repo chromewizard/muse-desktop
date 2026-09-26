@@ -1,4 +1,4 @@
-# Muse Desktop
+# Muse Desktop — Version 4.1.1 (beta) by Divine Pharaoh
 
 A comprehensive toolkit, launcher, and community fix suite for Muse Desktop on macOS, Windows, and Linux.
 
@@ -8,7 +8,7 @@ A comprehensive toolkit, launcher, and community fix suite for Muse Desktop on m
 
 | Edition | Version | Format | Description |
 | :--- | :--- | :--- | :--- |
-| **Muse Native App (Community Patch)** | **v4.1.1** | [Download .DMG](release/Muse-4.1.1.dmg) | Production macOS build with native TrueType typography & full entitlements |
+| **Muse Native App (Community Patch)** | **Version 4.1.1 (beta) by Divine Pharaoh** | [Download .DMG](release/Muse-4.1.1.dmg) | Production macOS build with native TrueType typography & full entitlements |
 | **Muse Standalone PWA Launcher** | **v1.1** | [Download .ZIP](release/Muse-Mac-App.zip) | Lightweight client with persistent Activity Inspector & Google/Email OAuth |
 
 ---
@@ -24,7 +24,7 @@ In the official desktop client, Beacon's **Right-Hand Activity Inspector** (Task
 
 ---
 
-## 🛠️ Muse v4.1.1 Community Patch (Native macOS App)
+## 🛠️ Muse Version 4.1.1 (beta) by Divine Pharaoh (Native macOS App)
 
 The official 4.1 release (`com.meta.endo`) encountered a widespread rendering issue on macOS where all headings, text, and buttons rendered as missing glyphs (`[?]` tofu).
 
@@ -32,7 +32,7 @@ The official 4.1 release (`com.meta.endo`) encountered a widespread rendering is
 1. **Font Packaging Mismatch:** `OptimisticAIVF.ttf` and `OptimisticMonoVF.ttf` in `Contents/Resources/Fonts/` were packaged as WOFF2 webfont streams under `.ttf` file extensions. macOS Apple Type Services (ATS) and CoreText fail to load WOFF2 headers via `ATSApplicationFontsPath`, causing font lookup failures and falling back to `.notdef` question mark boxes across all UI strings.
 2. **Missing US English Localization:** The bundle contained `en-GB.lproj` and foreign locales, but omitted `en.lproj`, failing language pack lookups on standard US English configurations.
 
-### 🚀 What's Fixed in v4.1.1:
+### 🚀 What's Fixed in Version 4.1.1 (beta) by Divine Pharaoh:
 - Converted and decompressed embedded typefaces to native SFNT TrueType (`0x00010000`) with full variable axes support.
 - Restored `en.lproj` localization fallback.
 - Preserved official OAuth capabilities and AppSSO authentication pipelines.
@@ -45,7 +45,7 @@ The official 4.1 release (`com.meta.endo`) encountered a widespread rendering is
 
 We analyzed the latest macOS ChatGPT desktop architecture (`/Applications/ChatGPT.app` v26.924) to align Muse Desktop with modern AI desktop design standards:
 
-| Feature | ChatGPT Desktop | Official Muse 4.1 | Muse Desktop v4.1.1 (Ours) |
+| Feature | ChatGPT Desktop | Official Muse 4.1 | Version 4.1.1 (beta) by Divine Pharaoh |
 | :--- | :--- | :--- | :--- |
 | **3-Column Architecture** | Chats (left), Conversation (center), Canvas/Inspector (right) | Sidebar collapsed by default | Left History drawer + Explicit Right Inspector toggle |
 | **Inspector Accessibility** | Dedicated toolbar button | Hidden behind avatar pill | Persistent header button + `Cmd+Option+I` shortcut |

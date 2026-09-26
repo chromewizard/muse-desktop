@@ -8,8 +8,19 @@ A comprehensive toolkit, launcher, and community fix suite for Muse Desktop on m
 
 | Edition | Version | Format | Description |
 | :--- | :--- | :--- | :--- |
-| **Muse Native App (Community Patch)** | **v4.1.1** | [Download .DMG](release/Muse-4.1.1.dmg) | Patched build fixing missing glyph tofu (`[?]` boxes) & font decoding |
-| **Muse Lightweight App-Mode Launcher** | **v1.0** | [Download .ZIP](release/Muse-Mac-App.zip) | Standalone Chrome PWA launcher running isolated window sessions |
+| **Muse Native App (Community Patch)** | **v4.1.1** | [Download .DMG](release/Muse-4.1.1.dmg) | Production macOS build with native TrueType typography & full entitlements |
+| **Muse Standalone PWA Launcher** | **v1.1** | [Download .ZIP](release/Muse-Mac-App.zip) | Lightweight client with persistent Activity Inspector & Google/Email OAuth |
+
+---
+
+## 🌟 New Feature: Beacon Activity Inspector Toggle
+
+In the official desktop client, Beacon's **Right-Hand Activity Inspector** (Tasks, Security, Timeline, and Identity) is collapsed by default and easily missed:
+* **The Problem:** The right activity drawer (showing live tool executions like *"Load Tool Namespace"*, memory, and permissions) could only be toggled by clicking the Beacon avatar pill at the top of the chat, with zero visual cue.
+* **The Feature Add:**
+  1. **Top-Right Toolbar Toggle:** Injected an explicit **`[Inspector]`** pill button next to `Invite` in the header bar.
+  2. **Keyboard Shortcut:** Added standard macOS shortcut **`Cmd + Option + I`** to instantly open/close Beacon's inspector panel from anywhere in the app.
+  3. Script and integration available in [`enhancements/inspector-toggle.js`](enhancements/inspector-toggle.js).
 
 ---
 
@@ -24,44 +35,34 @@ The official 4.1 release (`com.meta.endo`) encountered a widespread rendering is
 ### 🚀 What's Fixed in v4.1.1:
 - Converted and decompressed embedded typefaces to native SFNT TrueType (`0x00010000`) with full variable axes support.
 - Restored `en.lproj` localization fallback.
-- Re-signed and packaged into a clean, ready-to-run disk image: [`release/Muse-4.1.1.dmg`](release/Muse-4.1.1.dmg).
+- Preserved official OAuth capabilities and AppSSO authentication pipelines.
+- Packaged as a clean, compressed disk image (`release/Muse-4.1.1.dmg`).
 - Patch scripts and source build tooling are provided in [`v4.1.1-patch/`](v4.1.1-patch/).
 
 ---
 
-## 🚀 Muse Lightweight Desktop Launcher
+## 🔬 Benchmark vs. Recent ChatGPT Desktop (`com.openai.codex`)
 
-For a lightweight, zero-dependency alternative that runs without font issues or download stalls:
+We analyzed the latest macOS ChatGPT desktop architecture (`/Applications/ChatGPT.app` v26.924) to align Muse Desktop with modern AI desktop design standards:
 
-### Option 1: Run the Install Script
-Run this single command in your terminal to compile and place `Muse.app` directly on your Desktop:
-```bash
-bash install-mac.sh
-```
-
-### Option 2: Pre-compiled App
-Download [`release/Muse-Mac-App.zip`](release/Muse-Mac-App.zip), unzip it, and drag `Muse.app` to your Applications folder or Desktop.
-
-### Option 3: Direct Web Shortcut
-Double-click `Muse.webloc` to launch directly in your browser.
+| Feature | ChatGPT Desktop | Official Muse 4.1 | Muse Desktop v4.1.1 (Ours) |
+| :--- | :--- | :--- | :--- |
+| **3-Column Architecture** | Chats (left), Conversation (center), Canvas/Inspector (right) | Sidebar collapsed by default | Left History drawer + Explicit Right Inspector toggle |
+| **Inspector Accessibility** | Dedicated toolbar button | Hidden behind avatar pill | Persistent header button + `Cmd+Option+I` shortcut |
+| **Font Rendering** | Native system SFNT | Broken WOFF2 container (`[?]` tofu) | **Fixed** native SFNT TrueType (`0x00010000`) |
+| **Packaging** | Compressed UDZO DMG with drag-to-Applications | Standard DMG | High-compression UDZO DMG installer |
 
 ---
 
-## 💡 Cross-Platform Usage (Launcher)
+## 🚀 Quick Install (macOS)
 
-### macOS
+### Option 1: Native App Installer (DMG)
+Download [`release/Muse-4.1.1.dmg`](release/Muse-4.1.1.dmg), open it, and drag `Muse.app` to your Applications folder.
+
+### Option 2: Run the Install Script
+Run this single command in your terminal to build and place `Muse.app` directly on your Desktop:
 ```bash
-open -na "Google Chrome" --args --app="https://muse.ai"
-```
-
-### Windows
-```cmd
-start chrome --app=https://muse.ai
-```
-
-### Linux
-```bash
-google-chrome --app=https://muse.ai
+bash install-mac.sh
 ```
 
 ---

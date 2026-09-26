@@ -28,7 +28,12 @@ This directory contains the patch script, technical root cause analysis, and bui
    Created a proper fallback for `en.lproj` so US English installations immediately locate `fbt_language_pack.bin` and localized strings.
 3. **Unlocking Onboarding & Sidebar Access:**
    With all buttons and consent cards fully legible, users can step through onboarding or skip ahead to immediately access the full navigation sidebar.
-4. **App Bundle Re-signature & Packaging:**
+4. **Beacon Activity Inspector enhancements baked in:**
+   The native UI is a bundled single-file React app (`Contents/Resources/hatch/index.html`), so the patcher inlines
+   [`enhancements/inspector-toggle.js`](../enhancements/inspector-toggle.js) into it: Inspector open by default, the
+   `Inspector On/Off` state pill, `Cmd+Option+I`, and the Beacon twirl when the drawer is closed with the X.
+   Standalone use on an installed app: `python3 v4.1.1-patch/inject-enhancements.py /Applications/Muse.app` (`--restore` to undo).
+5. **App Bundle Re-signature & Packaging:**
    Re-signed the patched bundle with an ad-hoc code signature and packaged it into a clean, distributable disk image (`Muse-4.1.1.dmg`).
 
 ---

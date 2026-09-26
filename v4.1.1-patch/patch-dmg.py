@@ -13,7 +13,9 @@ as '?' .notdef tofu boxes. Furthermore, en.lproj was omitted from the bundle.
 Fix:
 1. Decompresses the embedded WOFF2 font tables to standard SFNT TrueType (0x00010000).
 2. Restores en.lproj localization mapping.
-3. Ad-hoc signs the app bundle and builds a distribution DMG.
+3. Bakes enhancements/inspector-toggle.js into the bundled web UI (Contents/Resources/hatch/index.html):
+   Inspector open by default, On/Off state pill, Cmd+Option+I, and the Beacon twirl on close.
+4. Ad-hoc signs the app bundle and builds a distribution DMG.
 """
 
 import os
@@ -21,6 +23,16 @@ import sys
 import shutil
 import subprocess
 import tempfile
+
+import importlib.util
+
+def _load_injector():
+    """inject-enhancements.py lives next to this file (hyphenated name, so load it by path)."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "inject-enhancements.py")
+    spec = importlib.util.spec_from_file_location("inject_enhancements", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 def log(msg):
     print(f"[Muse-Patcher] {msg}")
@@ -62,7 +74,12 @@ def patch_app(app_path):
         shutil.copytree(en_gb_dir, en_dir)
         log("✓ en.lproj created from en-GB.lproj.")
 
-    # 3. Ad-hoc re-sign
+    # 3. Bake the community enhancements into the bundled web UI (no backup inside a DMG build)
+    log("Injecting enhancements/inspector-toggle.js into Contents/Resources/hatch/index.html...")
+    _load_injector().inject(app_path, backup=False)
+    log("✓ Beacon Activity Inspector enhancements baked into the native UI.")
+
+    # 4. Ad-hoc re-sign
     log("Re-signing app bundle with ad-hoc signature...")
     subprocess.check_call(["codesign", "--force", "--deep", "-s", "-", app_path])
     log("✓ Muse.app successfully re-signed.")

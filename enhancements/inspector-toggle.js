@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Muse Desktop - Beacon Activity Inspector Toggle
+// @name         Muse Desktop - Beacon Activity Inspector (Auto-Open & Toggle)
 // @namespace    https://github.com/chromewizard/muse-desktop
-// @version      1.1
-// @description  Adds a persistent top-right toolbar toggle & Cmd+Option+I shortcut for Beacon's Agent Activity/Inspector panel.
+// @version      1.2
+// @description  Opens Beacon's Agent Activity Inspector drawer by default on startup, adds a persistent top-right toolbar toggle, and binds Cmd+Option+I.
 // @match        https://muse.ai/*
 // @grant        none
 // ==/UserScript==
@@ -10,15 +10,27 @@
 (function() {
     'use strict';
 
+    let hasAutoOpened = false;
+
     function findBeaconPill() {
-        // Look for the Beacon header element (avatar + name)
-        const headerButtons = document.querySelectorAll('header button, [role="banner"] button, div[role="button"]');
-        for (const btn of headerButtons) {
-            if (btn.textContent.includes('Beacon') || btn.querySelector('img[alt*="Beacon"]')) {
+        // Look for the Beacon header element (avatar + name pill in the top center)
+        const candidates = document.querySelectorAll('header button, [role="banner"] button, div[role="button"]');
+        for (const btn of candidates) {
+            if (btn.textContent.includes('Beacon') || btn.querySelector('img[alt*="Beacon"]') || btn.querySelector('[data-hatch-status-pill]')) {
                 return btn;
             }
         }
         return null;
+    }
+
+    function isInspectorOpen() {
+        // Detect if the right-hand status drawer is currently mounted and visible
+        return !!(
+            document.querySelector('[data-testid="hatch-status-panel-close-drag-handle"]') ||
+            document.querySelector('[data-hatch-status-sidebar-avatar]') ||
+            document.querySelector('article[data-hatch-bot-status-debug-state]') ||
+            Array.from(document.querySelectorAll('button')).some(b => b.getAttribute('aria-label')?.toLowerCase().includes('close') && b.closest('[class*="Sidebar"], [class*="panel"]'))
+        );
     }
 
     function toggleInspector() {
@@ -26,14 +38,25 @@
         if (pill) {
             pill.click();
         } else {
-            console.log('[Muse Desktop] Beacon avatar header button not found in current view.');
+            // Fallback: Dispatch internal Hatch approval/status event if available
+            window.dispatchEvent(new CustomEvent('hatch:open-approvals-panel'));
+        }
+    }
+
+    function autoOpenOnStartup() {
+        if (hasAutoOpened) return;
+        const pill = findBeaconPill();
+        if (pill && !isInspectorOpen()) {
+            hasAutoOpened = true;
+            pill.click();
+            console.log('[Muse Desktop] Beacon Activity Inspector opened by default.');
         }
     }
 
     function injectToggleToolbarButton() {
         if (document.getElementById('muse-inspector-toggle-btn')) return;
 
-        // Locate the header container (near the Invite button)
+        // Locate the header container near the Invite button
         const inviteBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Invite'));
         if (!inviteBtn || !inviteBtn.parentElement) return;
 
@@ -80,8 +103,18 @@
         }
     });
 
-    // Observe DOM changes to inject button when header mounts
-    const observer = new MutationObserver(() => injectToggleToolbarButton());
+    // Observe DOM changes to inject button & auto-open on initial load
+    const observer = new MutationObserver(() => {
+        injectToggleToolbarButton();
+        if (!hasAutoOpened) {
+            autoOpenOnStartup();
+        }
+    });
     observer.observe(document.body, { childList: true, subtree: true });
-    injectToggleToolbarButton();
+
+    // Initial check
+    setTimeout(() => {
+        injectToggleToolbarButton();
+        autoOpenOnStartup();
+    }, 500);
 })();

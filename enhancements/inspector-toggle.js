@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Muse Desktop - Beacon Activity Inspector (Auto-Open, Toggle, State Indicator & Twirl)
 // @namespace    https://github.com/chromewizard/muse-desktop
-// @version      1.3
+// @version      1.3.1
 // @description  Opens Beacon's Activity Inspector drawer by default, adds a persistent top-right toolbar toggle that shows On/Off state, binds Cmd+Option+I, and makes the little Beacon avatar do an organic twirl when the drawer is closed with the X (so people learn that he is the handle that brings it back).
 // @match        https://muse.ai/*
 // @grant        none
@@ -26,7 +26,7 @@
     'use strict';
 
     if (window.__museInspectorEnhancement) return; // idempotent (userscript + injected copy)
-    window.__museInspectorEnhancement = { version: '1.3' };
+    window.__museInspectorEnhancement = { version: '1.3.1' };
 
     const SEL = {
         closeBtn: '[data-testid="hatch-status-panel-close"]',
@@ -65,6 +65,15 @@
                 94%  { --muse-theta: 355deg; --muse-lift: 1px;  transform: translateY(-0.5px) rotate(-0.5deg) scale(0.99, 1.01); animation-timing-function: ease-out; }
                 100% { --muse-theta: 360deg; --muse-lift: 0px;  transform: translateY(0)      rotate(0deg)    scale(1, 1); }
             }
+            /* a replaced (custom) avatar gets only this plain hop — the onesie sphere is Beacon-specific */
+            @keyframes muse-beacon-hop {
+                0%   { transform: translateY(0)    rotate(0deg)    scale(1, 1);       animation-timing-function: ease-in; }
+                18%  { transform: translateY(1px)  rotate(2deg)    scale(1.04, 0.96); animation-timing-function: ease-out; }
+                50%  { transform: translateY(-8px) rotate(-2deg)   scale(0.98, 1.03); animation-timing-function: ease-in; }
+                80%  { transform: translateY(1px)  rotate(1deg)    scale(1.03, 0.97); animation-timing-function: ease-out; }
+                100% { transform: translateY(0)    rotate(0deg)    scale(1, 1); }
+            }
+            .muse-beacon-hopping { animation: muse-beacon-hop 620ms both !important; transform-origin: 50% 60% !important; will-change: transform; }
             /* the name tag under the avatar bobs when he lands, like it is attached to him */
             @keyframes muse-beacon-tag-bob {
                 0%   { transform: translateY(0); }
@@ -245,6 +254,39 @@
         } catch (e) { return null; }
     }
 
+    // The onesie-sphere twirl is built for Beacon's own look. Users can replace the avatar, and a
+    // photo or another character would get a fake fuzzy back, so the special move is gated:
+    //   1. the stock avatar renders from the app's built-in media (/avatars/hatch*.mp4|jpg) -> yes
+    //   2. otherwise the pixels under the face must read as Beacon's fabric: light, warm, low-detail
+    // Anything else gets a plain hop (still says "I'm the handle", nothing fabricated).
+    function isStockBeacon(front) {
+        const m = front.querySelector('video, img');
+        const src = (m && (m.currentSrc || m.src)) || '';
+        if (/\/avatars\/hatch[a-z_]*\.(mp4|jpg)(\?|#|$)/i.test(src)) return true;
+        const c = fabricCanvas(front, 16);
+        if (!c) return false;
+        try {
+            const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+            let n = 0, r = 0, g = 0, b = 0, l2 = 0, lsum = 0;
+            for (let i = 0; i < d.length; i += 4) { const L = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; r += d[i]; g += d[i + 1]; b += d[i + 2]; lsum += L; l2 += L * L; n++; }
+            r /= n; g /= n; b /= n; const lm = lsum / n, sd = Math.sqrt(Math.max(0, l2 / n - lm * lm));
+            const warm = r >= g - 4 && g >= b - 4, light = lm > 150 && lm < 248, muted = (Math.max(r, g, b) - Math.min(r, g, b)) < 70, smooth = sd < 30;
+            return warm && light && muted && smooth;
+        } catch (e) { return false; }
+    }
+
+    function runHop(avatar, tag) {
+        avatar.classList.remove('muse-beacon-hopping'); void avatar.offsetWidth;
+        avatar.classList.add('muse-beacon-hopping');
+        avatar.addEventListener('animationend', (e) => { if (e.animationName === 'muse-beacon-hop') avatar.classList.remove('muse-beacon-hopping'); }, { once: true });
+        if (tag) {
+            tag.classList.remove('muse-beacon-tag-bob'); void tag.offsetWidth;
+            tag.style.animationDelay = '260ms';
+            tag.classList.add('muse-beacon-tag-bob');
+            tag.addEventListener('animationend', () => { tag.classList.remove('muse-beacon-tag-bob'); tag.style.animationDelay = ''; }, { once: true });
+        }
+    }
+
     function makeLayer(className, texture, overlayClass) {
         const el = document.createElement('div');
         el.className = className;
@@ -272,6 +314,8 @@
             front.addEventListener('animationend', () => front.classList.remove('muse-beacon-pulse'), { once: true });
             return;
         }
+
+        if (!isStockBeacon(front)) { runHop(avatar, tag); return; }   // replaced avatar: plain hop only
 
         // restart cleanly if a twirl is already mid-flight
         avatar.querySelectorAll('.muse-beacon-ball, .muse-beacon-backface').forEach(n => n.remove());
@@ -435,4 +479,5 @@
     window.__museInspectorEnhancement.close = closeInspector;
     window.__museInspectorEnhancement.twirl = runTwirl;
     window.__museInspectorEnhancement.isOpen = isInspectorOpen;
+    window.__museInspectorEnhancement.isStockBeacon = () => { const a = document.querySelector(SEL.avatar); return !!a && isStockBeacon(a.firstElementChild || a); };
 })();

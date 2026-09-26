@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Cut the 12 Beacon turnaround views out of a 4x3 reference sheet, key the white backdrop to alpha,
-and emit the WebP atlas (192px cells) plus its base64 for enhancements/inspector-toggle.js (SHEET_URL).
+and emit the PNG-8 atlas (160px cells) plus its base64 for enhancements/inspector-toggle.js (SHEET_URL).
 
     python3 build-sheet.py beacon-turnaround-arm-lift-12-keyframes-v1.png
 """
@@ -27,8 +27,10 @@ for i, (cx, cy, rad) in enumerate(circles):
     arr = np.asarray(crop).astype(float)
     dist = np.sqrt(((255 - arr) ** 2).sum(axis=2)); alpha = np.clip((dist - 10) / 22, 0, 1) * mask
     out.paste(Image.fromarray(np.dstack([arr, alpha * 255]).astype(np.uint8), 'RGBA'), ((i % 4) * S, (i // 4) * S))
-out.save('beacon-turn-armlift.webp', quality=88, method=6)
-b64 = base64.b64encode(open('beacon-turn-armlift.webp', 'rb').read()).decode()
-open('beacon-turn-armlift.webp.b64', 'w').write(b64)
+s160 = out.resize((160 * 4, 160 * 3), Image.LANCZOS)
+q = s160.quantize(colors=256, method=Image.FASTOCTREE, dither=Image.FLOYDSTEINBERG)
+q.save('beacon-turn-armlift.png', optimize=True)
+b64 = base64.b64encode(open('beacon-turn-armlift.png', 'rb').read()).decode()
+open('beacon-turn-armlift.png.b64', 'w').write(b64)
 print('cells:', [(round(x), round(y), round(z)) for x, y, z in circles])
-print('webp bytes:', os.path.getsize('beacon-turn-armlift.webp'), '| paste beacon-turn-armlift.webp.b64 into SHEET_URL')
+print('png bytes:', os.path.getsize('beacon-turn-armlift.png'), '| paste beacon-turn-armlift.png.b64 into SHEET_URL')

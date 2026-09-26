@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Muse Desktop - Beacon Activity Inspector (Auto-Open, Toggle, State Indicator & Twirl)
 // @namespace    https://github.com/chromewizard/muse-desktop
-// @version      1.3.1
+// @version      1.3.2
 // @description  Opens Beacon's Activity Inspector drawer by default, adds a persistent top-right toolbar toggle that shows On/Off state, binds Cmd+Option+I, and makes the little Beacon avatar do an organic twirl when the drawer is closed with the X (so people learn that he is the handle that brings it back).
 // @match        https://muse.ai/*
 // @grant        none
@@ -26,7 +26,7 @@
     'use strict';
 
     if (window.__museInspectorEnhancement) return; // idempotent (userscript + injected copy)
-    window.__museInspectorEnhancement = { version: '1.3.1' };
+    window.__museInspectorEnhancement = { version: '1.3.2' };
 
     const SEL = {
         closeBtn: '[data-testid="hatch-status-panel-close"]',
@@ -57,11 +57,11 @@
             @property --muse-lift  { syntax: '<length>'; inherits: true; initial-value: 0px; }
             @keyframes muse-beacon-turn {
                 0%   { --muse-theta: 0deg;   --muse-lift: 0px;  transform: translateY(0)      rotate(0deg)    scale(1, 1);       animation-timing-function: ease-in-out; }
-                10%  { --muse-theta: -22deg; --muse-lift: 7px;  transform: translateY(1px)    rotate(3deg)    scale(1.05, 0.95); animation-timing-function: ease-in; }
-                24%  { --muse-theta: 50deg;  --muse-lift: 12px; transform: translateY(-7px)   rotate(-3deg)   scale(0.96, 1.06); animation-timing-function: linear; }
-                52%  { --muse-theta: 200deg; --muse-lift: 12px; transform: translateY(-11px)  rotate(2deg)    scale(1, 1);       animation-timing-function: linear; }
-                76%  { --muse-theta: 335deg; --muse-lift: 12px; transform: translateY(-4px)   rotate(-2deg)   scale(1, 1);       animation-timing-function: ease-out; }
-                86%  { --muse-theta: 372deg; --muse-lift: 5px;  transform: translateY(1.5px)  rotate(1.5deg)  scale(1.06, 0.94); animation-timing-function: ease-in-out; }
+                10%  { --muse-theta: -22deg; --muse-lift: 5px;  transform: translateY(1px)    rotate(3deg)    scale(1.05, 0.95); animation-timing-function: ease-in; }
+                24%  { --muse-theta: 50deg;  --muse-lift: 8px; transform: translateY(-7px)   rotate(-3deg)   scale(0.96, 1.06); animation-timing-function: linear; }
+                52%  { --muse-theta: 200deg; --muse-lift: 8px; transform: translateY(-11px)  rotate(2deg)    scale(1, 1);       animation-timing-function: linear; }
+                76%  { --muse-theta: 335deg; --muse-lift: 8px; transform: translateY(-4px)   rotate(-2deg)   scale(1, 1);       animation-timing-function: ease-out; }
+                86%  { --muse-theta: 372deg; --muse-lift: 3px;  transform: translateY(1.5px)  rotate(1.5deg)  scale(1.06, 0.94); animation-timing-function: ease-in-out; }
                 94%  { --muse-theta: 355deg; --muse-lift: 1px;  transform: translateY(-0.5px) rotate(-0.5deg) scale(0.99, 1.01); animation-timing-function: ease-out; }
                 100% { --muse-theta: 360deg; --muse-lift: 0px;  transform: translateY(0)      rotate(0deg)    scale(1, 1); }
             }
@@ -83,7 +83,7 @@
             }
             .muse-beacon-twirling {
                 animation: muse-beacon-turn 1700ms both !important;
-                perspective: 240px !important;
+                perspective: 300px !important;
                 transform-style: preserve-3d !important;
                 transform-origin: 50% 60% !important;
                 filter: none !important;                 /* a filter would flatten the 3D context */
@@ -94,8 +94,16 @@
                 backface-visibility: hidden !important; -webkit-backface-visibility: hidden !important;
                 will-change: transform;
             }
+            /* the light disc he sits in at rest stays put underneath everything, so the "white outline"
+               never disappears; the sphere and his back turn inside it at ~80% of its size */
+            .muse-beacon-frame {
+                position: absolute; inset: 0; border-radius: 9999px; pointer-events: none;
+                transform: translateZ(-1px);
+                background: #f2f0ec;
+                box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.5), inset 0 0 0 1px rgba(0, 0, 0, 0.035);
+            }
             .muse-beacon-ball, .muse-beacon-backface {
-                position: absolute; inset: 0; border-radius: 9999px; overflow: hidden; pointer-events: none;
+                position: absolute; inset: 10%; border-radius: 9999px; overflow: hidden; pointer-events: none;
                 background: linear-gradient(160deg, #efe6d8 0%, #d9c9b3 55%, #c2ad93 100%);
             }
             .muse-beacon-ball canvas, .muse-beacon-backface canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -287,6 +295,23 @@
         }
     }
 
+    // The light disc behind him: sample the avatar's own background from the frame's top-left corner
+    // (outside the figure) so the frame matches the app's theme; fall back to the CSS color.
+    function frameColor(front) {
+        try {
+            const m = front.querySelector('video, img');
+            const W = m && (m.videoWidth || m.naturalWidth), H = m && (m.videoHeight || m.naturalHeight);
+            if (!m || !(W > 0) || !(H > 0)) return null;
+            const c = document.createElement('canvas'); c.width = 8; c.height = 8;
+            const ctx = c.getContext('2d');
+            ctx.drawImage(m, W * 0.04, H * 0.04, W * 0.12, H * 0.12, 0, 0, 8, 8);
+            const d = ctx.getImageData(0, 0, 8, 8).data;
+            let r = 0, g = 0, b = 0, n = 0;
+            for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
+            return 'rgb(' + Math.round(r / n) + ',' + Math.round(g / n) + ',' + Math.round(b / n) + ')';
+        } catch (e) { return null; }
+    }
+
     function makeLayer(className, texture, overlayClass) {
         const el = document.createElement('div');
         el.className = className;
@@ -318,12 +343,16 @@
         if (!isStockBeacon(front)) { runHop(avatar, tag); return; }   // replaced avatar: plain hop only
 
         // restart cleanly if a twirl is already mid-flight
-        avatar.querySelectorAll('.muse-beacon-ball, .muse-beacon-backface').forEach(n => n.remove());
+        avatar.querySelectorAll('.muse-beacon-frame, .muse-beacon-ball, .muse-beacon-backface').forEach(n => n.remove());
         avatar.classList.remove('muse-beacon-twirling'); void avatar.offsetWidth;
 
         const size = front.getBoundingClientRect().width || 56;
+        const frame = document.createElement('div');
+        frame.className = 'muse-beacon-frame'; frame.setAttribute('aria-hidden', 'true');
+        const fc = frameColor(front); if (fc) frame.style.background = fc;
         const ball = makeLayer('muse-beacon-ball', fabricCanvas(front, size), 'muse-beacon-shade');
         const back = makeLayer('muse-beacon-backface', fabricCanvas(front, size), 'muse-beacon-hood');
+        avatar.appendChild(frame);
         avatar.appendChild(ball);
         avatar.appendChild(back);
 
@@ -335,7 +364,7 @@
             if (done) return; done = true;
             avatar.classList.remove('muse-beacon-twirling');
             front.classList.remove('muse-beacon-front');
-            ball.remove(); back.remove();
+            frame.remove(); ball.remove(); back.remove();
         };
         avatar.addEventListener('animationend', (e) => { if (e.animationName === 'muse-beacon-turn') cleanup(); });
         setTimeout(cleanup, 2600); // safety net if the node is re-rendered mid-spin
